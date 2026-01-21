@@ -2,8 +2,8 @@ name: FishingNewsUpdate
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *' # 毎日日本時間の朝9時に自動実行
+  workflow_dispatch:      # 手動実行ボタンを表示
 
 jobs:
   build:
@@ -11,13 +11,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install requests beautifulsoup4 gspread google-auth
+
       - name: Run scraper
         env:
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
