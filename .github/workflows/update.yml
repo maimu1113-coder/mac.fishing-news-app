@@ -2,8 +2,8 @@ name: FishingNewsUpdate
 
 on:
   schedule:
-    - cron: '0 21 * * *' # 日本時間の朝6時に自動実行
-  workflow_dispatch:      # 手動で今すぐ動かすボタンを表示する設定
+    - cron: '0 0 * * *' # 毎日1回自動実行
+  workflow_dispatch:      # 手動実行ボタンを出す設定
 
 jobs:
   build:
@@ -19,9 +19,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install requests beautifulsoup4 gspread google-auth
 
       - name: Run scraper
         env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: python scraper.py
