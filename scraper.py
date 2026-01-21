@@ -1,54 +1,48 @@
 import os
-import json
 import requests
 from bs4 import BeautifulSoup
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+import json
 
-# 1. 認証設定 (GitHubのSecretsから読み込み)
-def get_gspread_client():
-    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    # GitHubのSettingsで設定する秘密鍵を読み込む
-    service_account_info = json.loads(os.environ['GOOGLE_CREDENTIALS'])
-    creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
-    return gspread.authorize(creds)
+# 設定
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+JSON_DATA = os.environ["GCP_SA_KEY"]
 
 def main():
+    # ニュース取得（例として釣具の最新情報を取得）
+    url = "https://www.fimosw.com/news" # 釣りニュースサイトの例
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    news_list = []
+    # 記事タイトルとリンクを抽出（サイトの構造に合わせて調整）
+    for item in soup.select('h3 a')[:10]:
+        title = item.get_text(strip=True)
+        link = item.get('href')
+        if not link.startswith('http'):
+            link = "https://www.fimosw.com" + link
+        news_list.append([title, link])
+
+    if not news_list:
+        print("ニュースが見つかりませんでした")
+        return
+
+    # Google Sheets API 認証
+    info = json.loads(JSON_DATA)
+    creds = Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    client = gspread.authorize(creds)
+    
+    # スプレッドシートへ書き込み
     try:
-        gc = get_gspread_client()
-        # スプレッドシートの名前を「釣具ニュース」に設定してください
-        sh = gc.open("釣具ニュース")
-        worksheet = sh.get_worksheet(0)
-
-        # 巡回するメーカーの設定
-        targets = [
-            {"brand": "シマノ", "url": "https://fish.shimano.com/ja-JP/news.html", "selector": ".news-list-item"},
-            {"brand": "ダイワ", "url": "https://www.daiwa.com/jp/fishing/news/index.html", "selector": ".news-list li"},
-            {"brand": "ジャッカル", "url": "https://www.jackall.co.jp/saltwater/news/", "selector": "article"}
-        ]
+        sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Sheet1")
         
-        new_rows = []
-        for t in targets:
-            res = requests.get(t["url"], timeout=15)
-            soup = BeautifulSoup(res.content, "html.parser")
-            items = soup.select(t["selector"])[:3] # 最新3件
-            
-            for item in items:
-                title = item.get_text(strip=True)
-                # スプレッドシートに書き込む形式に整理
-                new_rows.append([
-                    t["brand"], 
-                    title, 
-                    t["url"], 
-                    datetime.now().strftime("%Y-%m-%d %H:%M")
-                ])
+        # 既存の内容をクリアして新しく書き込む
+        sheet.clear()
+        sheet.update('A1', [['タイトル', 'URL']])
+        sheet.update('A2', news_list)
+        print("スプレッドシートの更新に成功しました！")
         
-        if new_rows:
-            # 2行目（見出しの下）にデータを挿入
-            worksheet.insert_rows(new_rows, 2)
-            print(f"{len(new_rows)}件の更新に成功しました。")
-
     except Exception as e:
         print(f"エラーが発生しました: {e}")
 
