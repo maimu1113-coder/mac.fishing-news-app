@@ -1,28 +1,20 @@
-name: FishingNewsUpdate
+name: Fishing Bot Run
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # 毎日日本時間の朝9時に自動実行
-  workflow_dispatch:      # 手動実行ボタンを表示
+    - cron: "0 21 * * *"
 
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          pip install requests beautifulsoup4 gspread google-auth
-
-      - name: Run scraper
+          node-version: 20
+      - run: npm install
+      - run: node index.js
         env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-        run: python scraper.py
